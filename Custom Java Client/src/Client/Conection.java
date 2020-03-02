@@ -3,6 +3,8 @@ package Client;
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.util.Arrays;
 import Protobuf.*;
 
 public class Conection {
@@ -98,6 +100,34 @@ public class Conection {
     public void setPort(int port) {
         this.port = port;
     }
+    
+    /*
+     * Source: https://bit.ly/3cjWx9U
+     */
+    public static byte[] trim(byte[] bytes) {
+        int i = bytes.length - 1;
+        while (i >= 0 && bytes[i] == 0) {
+            --i;
+        }
+        return Arrays.copyOf(bytes, i + 1);
+    }
+    
+    /*
+     * Author: Zihao Zhou
+     */
+    public MessagesRobocupSslWrapper.SSL_WrapperPacket receive() throws Exception {
+        byte[] buffer = new byte[65536];
+        MulticastSocket ds = new MulticastSocket(10020);
+        InetAddress group = InetAddress.getByName("224.5.23.3");
+        ds.joinGroup(group);
+                
+        DatagramPacket dp = new DatagramPacket(buffer, buffer.length);
+        ds.receive(dp);
+        MessagesRobocupSslWrapper.SSL_WrapperPacket packet = MessagesRobocupSslWrapper
+                .SSL_WrapperPacket.getDefaultInstance();
+        //System.out.println(Arrays.toString(trim(dp.getData())));
+        return packet.parseFrom(trim(dp.getData()));
+    }
 
     public void send() {
         GrSimCommands.grSim_Robot_Command command = GrSimCommands.grSim_Robot_Command.newBuilder().setId(this.id)
@@ -108,6 +138,14 @@ public class Conection {
         GrSimCommands.grSim_Commands command2 = GrSimCommands.grSim_Commands.newBuilder().setTimestamp(this.timeStamp)
                 .setIsteamyellow(this.teamYellow).addRobotCommands(command).build();
         GrSimPacket.grSim_Packet packet = GrSimPacket.grSim_Packet.newBuilder().setCommands(command2).build();
+
+        try {
+            MessagesRobocupSslWrapper.SSL_WrapperPacket ssl_packet = this.receive();
+            System.out.println(ssl_packet.toString());
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+
         String buffer = packet.toString();
         buffer2 = packet.toByteArray();
         try {
